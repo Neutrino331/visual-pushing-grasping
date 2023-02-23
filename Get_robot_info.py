@@ -12,21 +12,22 @@ with open(xml_file,encoding="UTF8") as fd:
 
 settings = data["File"]["CodeTable"]["Setting"]
 num = 0 
-var_list = []
+var_list = list()
 for var in settings:
-    if var["@Accessibility"] == "R/W":
-        var_list.append([var["@Item"],var["@Description"]])
-print(var_list)
+    var_list.append(var["@Item"])
+#print(var_list)
 
+info = ["Joint_Angle"] # add desired variables
 
 async def get_info(robotip):
-    async with techmanpy.connect_svr(robot_ip=robotip) as conn:
-        for v in var_list:
-            value = await conn.get_value(v[0])
-            print(f'{v[1]}: {value}\n')
-        
-             
-        
+    while True:
+        async with techmanpy.connect_svr(robot_ip=robotip,client_id="info") as conn:
+            value = await conn.get_values(var_list)
+            for i in range(len(var_list)):
+                print(f'{var_list[i]}:{value[var_list[i]]}')
+            # Sleep 2 seconds (at most)
+            time.sleep(2)
+            await conn.keep_alive()
         
 if __name__ == '__main__':
     if len(sys.argv) == 2:

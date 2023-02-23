@@ -21,3 +21,4 @@ realsense/realsense
 commands.txt
 visualization.push.png
 visualization.grasp.png
+.vscode/settings.json
