@@ -17,9 +17,17 @@ cam_realsense = True
 
 chessboard_width_num, chessboard_height_num = (7, 5)
 
+chess_board_len=30#单位棋盘格长度,mm
+
 criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-objp = np.zeros((5*7, 3), np.float32)
-objp[:, :2] = np.mgrid[0:7, 0:5].T.reshape(-1, 2)
+#objp = np.zeros((5*7, 3), np.float32)
+objp = np.zeros((3,chessboard_width_num*chessboard_height_num),dtype=np.float32)
+#objp[:, :2] = np.mgrid[0:7, 0:5].T.reshape(-1, 2)
+flag=0
+for i in range(chessboard_height_num):
+    for j in range(chessboard_width_num):
+        objp[:2,flag]=np.array([(7-j-1),(5-i-1)])
+        flag+=1
 
 hand = [98.48088, -580.5756, 137.185, 166.851, 5.214443, -8.11066,
         86.70583, -580.8532, 213.8269, 177.3208, -31.93295, -27.82692,
@@ -45,7 +53,7 @@ def get_robot_pose(robotip):
 
 
 def take_picture():
-    if cam_realsense:
+    if not cam_realsense:
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
             print("Cannot open camera")
@@ -58,7 +66,7 @@ def take_picture():
             else:
                 #cv2.namedWindow("live", cv2.WINDOW_AUTOSIZE)  # 命名一個視窗，可不寫
                 cv2.imshow("live", frame)
-                cv2.imwrite("test_img.png", frame)
+                
                 cv2.waitKey(1000)
                 return frame
         cv2.destroyAllWindows()
@@ -73,16 +81,17 @@ def take_picture():
 
         intr = profile.as_video_stream_profile().get_intrinsics()
         print(intr)
+        for i in range(0,30):
+            
+            frames = pipeline.wait_for_frames()  #等待获取图像帧
+            color_frame = frames.get_color_frame()
+            color_image = np.asanyarray(color_frame.get_data())  # RGB图
 
-        time.sleep(1)
-        frames = pipeline.wait_for_frames()
-        depth_frame = frames.get_depth_frame()
-        color_frame = frames.get_color_frame()
         
-            # Convert images to numpy arrays
-        depth_image = np.asanyarray(depth_frame.get_data())
-        color_image = np.asanyarray(color_frame.get_data())
+        cv2.imshow("live", color_image)
+        cv2.waitKey(1000)
         return color_image
+    cv2.destroyAllWindows()
 
 
 def move(x, y, z, rx, ry, rz):
@@ -117,8 +126,8 @@ def quatMinimal2rot(q):
     return tfs.quaternions.quat2mat([w, q[0], q[1], q[2]])
 
 
-axis = np.float32([[0, 0, 0], [0, 3, 0], [3, 3, 0], [3, 0, 0],
-                   [0, 0, -3], [0, 3, -3], [3, 3, -3], [3, 0, -3]])
+axis = np.float32([[0,0,0], [0,3,0], [3,3,0], [3,0,0],
+                   [0,0,-3],[0,3,-3],[3,3,-3],[3,0,-3] ])
 
 
 def draw(img, corners, imgpts):
@@ -132,123 +141,144 @@ def draw(img, corners, imgpts):
     img = cv2.drawContours(img, [imgpts[4:]], -1, (0, 0, 255), 3)
     return img
 
-pipeline = rs.pipeline()
-config = rs.config()
-config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, 30)
-config.enable_stream(rs.stream.color, 1280, 720, rs.format.rgb8, 30) 
+def main():
+    pipeline = rs.pipeline()
+    config = rs.config()
+    config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, 30)
+    config.enable_stream(rs.stream.color, 1280, 720, rs.format.rgb8, 30) 
 
-cfg = pipeline.start(config)
-profile = cfg.get_stream(rs.stream.color)
+    cfg = pipeline.start(config)
+    align_to = rs.stream.color  #与color流对齐
+    align = rs.align(align_to)
+    profile = cfg.get_stream(rs.stream.color)
 
-intr = profile.as_video_stream_profile().get_intrinsics()
-print(intr)
-intr_mtx = [[intr.fx,0,intr.ppx],
-            [0,intr.fy,intr.ppy],
-            [0,0,1]]
-dst = intr.coeffs
+    intr = profile.as_video_stream_profile().get_intrinsics()
+    print(intr)
+    intr_mtx = np.asarray([[intr.fx,0,intr.ppx],
+                [0,intr.fy,intr.ppy],
+                [0,0,1]])
+    dst = np.asarray(intr.coeffs)
 
-for i in range(0, len(hand), 6):
-    move(hand[i], hand[i+1], hand[i+2], hand[i+3], hand[i+4], hand[i+5])
-    time.sleep(5)
-    img = take_picture()
-    gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    print("gray_img shape:", gray_img.shape)
+    for idx in range(0, len(hand), 6):
+        move(hand[idx], hand[idx+1], hand[idx+2], hand[idx+3], hand[idx+4], hand[idx+5])
+        time.sleep(5)
+        img = take_picture()
+        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        print("gray_img shape:", gray_img.shape)
 
-    cp_int = np.zeros(
-        (chessboard_width_num * chessboard_height_num, 3), np.float32)
-    cp_int[:, :2] = np.mgrid[0:chessboard_width_num,
-                             0:chessboard_height_num].T.reshape(-1, 2)
-    # cp_world: corner point in world space, save the coordinate of corner points in world space.
-    cp_world = cp_int * 0.02
+        cp_int = np.zeros(
+            (chessboard_width_num * chessboard_height_num, 3), np.float32)
+        cp_int[:, :2] = np.mgrid[0:chessboard_width_num,
+                                0:chessboard_height_num].T.reshape(-1, 2)
+        # cp_world: corner point in world space, save the coordinate of corner points in world space.
+        cp_world = cp_int * 0.02
 
-    ret2, corners = cv2.findChessboardCorners(
-        gray_img, (chessboard_width_num, chessboard_height_num), None)
-    obj_points = []  # the points in world space
-    img_points = []  # the points in image space (relevant to obj_points)
-    obj_points.append(cp_world)
-    img_points.append(corners)
+        ret2, corners = cv2.findChessboardCorners(
+            gray_img, (chessboard_width_num, chessboard_height_num), None)
+        obj_points = []  # the points in world space
+        img_points = []  # the points in image space (relevant to obj_points)
+        obj_points.append(cp_world)
+        img_points.append(corners)
+        corner_points=np.zeros((2,corners.shape[0]),dtype=np.float32)
+        for i in range(corners.shape[0]):
+            corner_points[:,i]=corners[i,0,:]
 
-    if ret2 == True:
-        corners2 = cv2.cornerSubPix(
-            gray_img, corners, (11, 11), (-1, -1), criteria)
-        _, mtx, dist, v_rot, v_trans = cv2.calibrateCamera(
-            obj_points, img_points, gray_img.shape[::-1], None, None)
-        # view the corners
-        cv2.drawChessboardCorners(
-            img, (chessboard_width_num, chessboard_height_num), corners2, ret2)
+        if ret2:
+            corners2 = cv2.cornerSubPix(
+                gray_img, corners, (11, 11), (-1, -1), criteria)
+            
+            # view the corners
+            cv2.drawChessboardCorners(
+                img, (chessboard_width_num, chessboard_height_num), corners2, ret2)
+            
+            # Find the rotation and translation vectors.
+            _, rvecs, tvecs= cv2.solvePnP(objp.T, corner_points.T, intr_mtx, distCoeffs=None)
+            
+            # project 3D points to image plane
+            imgpts, jac = cv2.projectPoints(axis, rvecs, tvecs, intr_mtx, distCoeffs=None)
+            img = draw(img, corner_points.T, imgpts)
+        else:
+            print("Can't find chessboard!")
+
+        cv2.imshow('img', img)
+        cv2.imwrite("test_img.png", img)
+        cv2.waitKey(1000)
+        cv2.destroyAllWindows()
+        print("内部参數=", intr_mtx)
+        print("扭曲系数=", dst)
+        #print(v_rot[0])
+        print(f"第{idx/6}組旋轉向量=", rvecs)
+        print(f"第{idx/6}組平移向量=", tvecs)
+        print("="*25)
+        def rot_params_rv(rvecs):
+            from math import pi,atan2,asin
+            R = cv2.Rodrigues(rvecs)[0]
+            print(R)
+            roll = 180*atan2(-R[2][1], R[2][2])/pi
+            pitch = 180*asin(R[2][0])/pi
+            yaw = 180*atan2(-R[1][0], R[0][0])/pi
+            rot_params= [roll,pitch,yaw]
+            return rot_params
+        angles = rot_params_rv(rvecs)
+        print(angles)
         
+        print(tvecs)
+        camera.append(tvecs[0])
+        camera.append(tvecs[1])
+        camera.append(tvecs[2])
+        camera.append(angles[0]) 
+        camera.append(angles[1]) 
+        camera.append(angles[2])
         
-        # Find the rotation and translation vectors.
-        _, rvecs, tvecs = cv2.solvePnP(objp, corners2, intr_mtx, dst)
-        # project 3D points to image plane
-        imgpts, jac = cv2.projectPoints(axis, rvecs, tvecs, intr_mtx, dst)
-        img = draw(img, corners2, imgpts)
-    else:
-        print("Can't find chessboard!")
 
-    cv2.imshow('img', img)
-    cv2.waitKey(1000)
-    cv2.destroyAllWindows()
-    print("内部参數=", intr_mtx)
-    print("扭曲系数=", dst)
-    #print(v_rot[0])
-    print(f"第{i/6}組旋轉向量=", rvecs)
-    print(f"第{i/6}組平移向量=", tvecs)
-    print("="*25)
-    camera.append(tvecs[0][0])
-    camera.append(tvecs[0][1])
-    camera.append(tvecs[0][2])
-    camera.append(rvecs[0][0]) 
-    camera.append(rvecs[0][1]) 
-    camera.append(rvecs[0][2])
-    
+    Hgs, Hcs = [], []
 
-Hgs, Hcs = [], []
+    for i in range(0, len(hand), 6):
+        Hgs.append(get_matrix_eular_radu(
+            hand[i], hand[i+1], hand[i+2], hand[i+3], hand[i+4], hand[i+5]))
+        Hcs.append(get_matrix_eular_radu(
+            hand[i], hand[i+1], hand[i+2], camera[i+3], camera[i+4], camera[i+5]))
+ 
+    Hgijs = []
+    Hcijs = []
+    A = []
+    B = []
+    size = 0
+    for i in range(len(Hgs)):
+        for j in range(i+1, len(Hgs)):
+            size += 1
+            Hgij = np.dot(np.linalg.inv(Hgs[j]), Hgs[i])
+            Hgijs.append(Hgij)
+            Pgij = np.dot(2, rot2quat_minimal(Hgij))
 
-for i in range(0, len(hand), 6):
-    Hgs.append(get_matrix_eular_radu(
-        hand[i], hand[i+1], hand[i+2], hand[i+3], hand[i+4], hand[i+5]))
-    Hcs.append(get_matrix_eular_radu(
-        camera[i], camera[i+1], camera[i+2], camera[i+3], camera[i+4], camera[i+5]))
+            Hcij = np.dot(Hcs[j], np.linalg.inv(Hcs[i]))
+            Hcijs.append(Hcij)
+            Pcij = np.dot(2, rot2quat_minimal(Hcij))
 
-Hgijs = []
-Hcijs = []
-A = []
-B = []
-size = 0
-for i in range(len(Hgs)):
-    for j in range(i+1, len(Hgs)):
-        size += 1
-        Hgij = np.dot(np.linalg.inv(Hgs[j]), Hgs[i])
-        Hgijs.append(Hgij)
-        Pgij = np.dot(2, rot2quat_minimal(Hgij))
+            A.append(skew(np.add(Pgij, Pcij)))
+            B.append(np.subtract(Pcij, Pgij))
+    MA = np.asarray(A).reshape(size*3, 3)
+    MB = np.asarray(B).reshape(size*3, 1)
+    Pcg_ = np.dot(np.linalg.pinv(MA), MB)
+    pcg_norm = np.dot(np.conjugate(Pcg_).T, Pcg_)
+    Pcg = np.sqrt(np.add(1, np.dot(Pcg_.T, Pcg_)))
+    Pcg = np.dot(np.dot(2, Pcg_), np.linalg.inv(Pcg))
+    Rcg = quatMinimal2rot(np.divide(Pcg, 2)).reshape(3, 3)
 
-        Hcij = np.dot(Hcs[j], np.linalg.inv(Hcs[i]))
-        Hcijs.append(Hcij)
-        Pcij = np.dot(2, rot2quat_minimal(Hcij))
+    A = []
+    B = []
+    id = 0
+    for i in range(len(Hgs)):
+        for j in range(i+1, len(Hgs)):
+            Hgij = Hgijs[id]
+            Hcij = Hcijs[id]
+            A.append(np.subtract(Hgij[0:3, 0:3], np.eye(3, 3)))
+            B.append(np.subtract(np.dot(Rcg, Hcij[0:3, 3:4]), Hgij[0:3, 3:4]))
+            id += 1
 
-        A.append(skew(np.add(Pgij, Pcij)))
-        B.append(np.subtract(Pcij, Pgij))
-MA = np.asarray(A).reshape(size*3, 3)
-MB = np.asarray(B).reshape(size*3, 1)
-Pcg_ = np.dot(np.linalg.pinv(MA), MB)
-pcg_norm = np.dot(np.conjugate(Pcg_).T, Pcg_)
-Pcg = np.sqrt(np.add(1, np.dot(Pcg_.T, Pcg_)))
-Pcg = np.dot(np.dot(2, Pcg_), np.linalg.inv(Pcg))
-Rcg = quatMinimal2rot(np.divide(Pcg, 2)).reshape(3, 3)
+    MA = np.asarray(A).reshape(size*3, 3)
+    MB = np.asarray(B).reshape(size*3, 1)
+    Tcg = np.dot(np.linalg.pinv(MA), MB).reshape(3,)
+    print(tfs.affines.compose(Tcg, np.squeeze(Rcg), [1, 1, 1]))
 
-A = []
-B = []
-id = 0
-for i in range(len(Hgs)):
-    for j in range(i+1, len(Hgs)):
-        Hgij = Hgijs[id]
-        Hcij = Hcijs[id]
-        A.append(np.subtract(Hgij[0:3, 0:3], np.eye(3, 3)))
-        B.append(np.subtract(np.dot(Rcg, Hcij[0:3, 3:4]), Hgij[0:3, 3:4]))
-        id += 1
-
-MA = np.asarray(A).reshape(size*3, 3)
-MB = np.asarray(B).reshape(size*3, 1)
-Tcg = np.dot(np.linalg.pinv(MA), MB).reshape(3,)
-print(tfs.affines.compose(Tcg, np.squeeze(Rcg), [1, 1, 1]))
+main()
