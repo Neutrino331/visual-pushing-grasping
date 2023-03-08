@@ -142,7 +142,10 @@ profile = cfg.get_stream(rs.stream.color)
 
 intr = profile.as_video_stream_profile().get_intrinsics()
 print(intr)
-
+intr_mtx = [[intr.fx,0,intr.ppx],
+            [0,intr.fy,intr.ppy],
+            [0,0,1]]
+dst = intr.coeffs
 
 for i in range(0, len(hand), 6):
     move(hand[i], hand[i+1], hand[i+2], hand[i+3], hand[i+4], hand[i+5])
@@ -176,9 +179,9 @@ for i in range(0, len(hand), 6):
         
         
         # Find the rotation and translation vectors.
-        _, rvecs, tvecs = cv2.solvePnP(objp, corners2, mtx, dist)
+        _, rvecs, tvecs = cv2.solvePnP(objp, corners2, intr_mtx, dst)
         # project 3D points to image plane
-        imgpts, jac = cv2.projectPoints(axis, rvecs, tvecs, mtx, dist)
+        imgpts, jac = cv2.projectPoints(axis, rvecs, tvecs, intr_mtx, dst)
         img = draw(img, corners2, imgpts)
     else:
         print("Can't find chessboard!")
@@ -189,15 +192,15 @@ for i in range(0, len(hand), 6):
     print("内部参數=", mtx)
     print("扭曲系数=", dist)
     #print(v_rot[0])
-    print(f"第{i/6}組旋轉向量=", v_rot)
-    print(f"第{i/6}組平移向量=", v_trans)
+    print(f"第{i/6}組旋轉向量=", rvecs)
+    print(f"第{i/6}組平移向量=", tvecs)
     print("="*25)
-    camera.append(v_trans[0][0])
-    camera.append(v_trans[0][1])
-    camera.append(v_trans[0][2])
-    camera.append(v_rot[0][0]) 
-    camera.append(v_rot[0][1]) 
-    camera.append(v_rot[0][2])
+    camera.append(tvecs[0][0])
+    camera.append(tvecs[0][1])
+    camera.append(tvecs[0][2])
+    camera.append(rvecs[0][0]) 
+    camera.append(rvecs[0][1]) 
+    camera.append(rvecs[0][2])
     
 
 Hgs, Hcs = [], []
