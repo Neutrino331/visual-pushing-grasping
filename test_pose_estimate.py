@@ -4,7 +4,7 @@ import glob
 import time 
 
 
-
+c = 0
 criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 objp = np.zeros((5*7, 3), np.float32)
 objp[:, :2] = np.mgrid[0:7, 0:5].T.reshape(-1, 2)
@@ -65,6 +65,7 @@ while(True):
         imgpts, jac = cv.projectPoints(axis, rvecs, tvecs, mtx, dist)
         frame = draw(frame, corners2, imgpts)
     cv.imshow('img', frame)
+    cv.waitKey(1000)
     print("内参=", mtx)
     print("畸变系数=", dist)
     print("旋转向量=", v_rot)
@@ -72,7 +73,8 @@ while(True):
     print("="*50)
     k = cv.waitKey(67)
     if k == ord('s'):
-        cv.imwrite('cool'+'.png', frame)
+        c = c+1
+        cv.imwrite('./cool'+str(c)+'.png', frame)
     elif k== ord('q'):
         break
 cv.destroyAllWindows()

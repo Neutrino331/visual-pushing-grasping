@@ -132,13 +132,15 @@ for i in range(0, len(hand), 6):
     img_points.append(corners)
 
     if ret2 == True:
-        # view the corners
-        cv2.drawChessboardCorners(
-            img, (chessboard_width_num, chessboard_height_num), corners, ret2)
-        _, mtx, dist, v_rot, v_trans = cv2.calibrateCamera(
-            obj_points, img_points, gray_img.shape[::-1], None, None)
         corners2 = cv2.cornerSubPix(
             gray_img, corners, (11, 11), (-1, -1), criteria)
+        _, mtx, dist, v_rot, v_trans = cv2.calibrateCamera(
+            obj_points, img_points, gray_img.shape[::-1], None, None)
+        # view the corners
+        cv2.drawChessboardCorners(
+            img, (chessboard_width_num, chessboard_height_num), corners2, ret2)
+        
+        
         # Find the rotation and translation vectors.
         _, rvecs, tvecs = cv2.solvePnP(objp, corners2, mtx, dist)
         # project 3D points to image plane
