@@ -7,10 +7,13 @@ import numpy as np
 import asyncio
 import math
 import techmanpy
+import pyrealsense2 as rs
 
 
 
 robotip = "192.168.10.13"
+
+cam_realsense = True
 
 chessboard_width_num, chessboard_height_num = (7, 5)
 
@@ -42,24 +45,44 @@ def get_robot_pose(robotip):
 
 
 def take_picture():
-    cap = cv2.VideoCapture(0)
-
-    if not cap.isOpened():
-        print("Cannot open camera")
-        exit()
-
-    else:
-        # 擷取影像
-        ret, frame = cap.read()
-        if not ret:
-            print("Can't receive frame (stream end?). Exiting ...")
+    if cam_realsense:
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            print("Cannot open camera")
+            exit()
         else:
-            #cv2.namedWindow("live", cv2.WINDOW_AUTOSIZE)  # 命名一個視窗，可不寫
-            cv2.imshow("live", frame)
-            cv2.imwrite("test_img.png", frame)
-            cv2.waitKey(1000)
-            return frame
-    cv2.destroyAllWindows()
+            # 擷取影像
+            ret, frame = cap.read()
+            if not ret:
+                print("Can't receive frame (stream end?). Exiting ...")
+            else:
+                #cv2.namedWindow("live", cv2.WINDOW_AUTOSIZE)  # 命名一個視窗，可不寫
+                cv2.imshow("live", frame)
+                cv2.imwrite("test_img.png", frame)
+                cv2.waitKey(1000)
+                return frame
+        cv2.destroyAllWindows()
+    else:
+        pipeline = rs.pipeline()
+        config = rs.config()
+        config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, 30)
+        config.enable_stream(rs.stream.color, 1280, 720, rs.format.rgb8, 30) 
+
+        cfg = pipeline.start(config)
+        profile = cfg.get_stream(rs.stream.color)
+
+        intr = profile.as_video_stream_profile().get_intrinsics()
+        print(intr)
+
+        time.sleep(1)
+        frames = pipeline.wait_for_frames()
+        depth_frame = frames.get_depth_frame()
+        color_frame = frames.get_color_frame()
+        
+            # Convert images to numpy arrays
+        depth_image = np.asanyarray(depth_frame.get_data())
+        color_image = np.asanyarray(color_frame.get_data())
+        return color_image
 
 
 def move(x, y, z, rx, ry, rz):
@@ -108,6 +131,17 @@ def draw(img, corners, imgpts):
     # draw top layer in red color
     img = cv2.drawContours(img, [imgpts[4:]], -1, (0, 0, 255), 3)
     return img
+
+pipeline = rs.pipeline()
+config = rs.config()
+config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, 30)
+config.enable_stream(rs.stream.color, 1280, 720, rs.format.rgb8, 30) 
+
+cfg = pipeline.start(config)
+profile = cfg.get_stream(rs.stream.color)
+
+intr = profile.as_video_stream_profile().get_intrinsics()
+print(intr)
 
 
 for i in range(0, len(hand), 6):

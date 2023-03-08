@@ -13,6 +13,7 @@ profile = cfg.get_stream(rs.stream.color)
 
 intr = profile.as_video_stream_profile().get_intrinsics()
 print(intr)
+print(intr.coeffs)
 
 time.sleep(1)
 frames = pipeline.wait_for_frames()
@@ -29,7 +30,7 @@ color_image = np.asanyarray(color_frame.get_data())
 depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
 color_image = cv2.cvtColor(color_image,cv2.COLOR_BGR2RGB)
 # # Stack both images horizontally
-images = np.hstack((color_image, depth_colormap))
+images = np.vstack((color_image, depth_colormap))
 
 # # Show images
 cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
