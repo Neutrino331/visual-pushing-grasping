@@ -60,7 +60,7 @@ async def move(robotip):
 
 async def move_to_point(robotip):
     async with techmanpy.connect_sct(robot_ip=robotip) as conn:
-        await conn.move_to_point_ptp([350, 20, 500, -180, 0, 90], 0.5, 200) # x 不能低於350 z 不能低於95
+        await conn.move_to_point_ptp([-130.98376889 ,-523.35036404 ,  46.59206366, -180, 0, 0], 0.5, 200) # x 不能低於350 z 不能低於95
 async def move_to_point2(robotip):
     async with techmanpy.connect_sct(robot_ip=robotip) as conn:
         await conn.move_to_point_ptp([-350, 100, 450, -180, 0, -90], 0.5, 200) # z不能小於350 mm
@@ -74,7 +74,7 @@ async def close(robotip):
 if __name__ == '__main__':
     if len(sys.argv) == 2:
         try:
-            asyncio.run(open(sys.argv[1]))
+            asyncio.run(move_to_point(sys.argv[1]))
         except KeyboardInterrupt:
             print("here")  # terminate gracefully
     else:

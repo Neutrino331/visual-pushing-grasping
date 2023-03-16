@@ -11,33 +11,33 @@ import techmanpy
 from techmanpy import TechmanException
 
 def get_data():
-        pipeline = rs.pipeline()  #定义流程pipeline
-        config = rs.config()   #定义配置config
-        config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, 30)  #配置depth流
-        config.enable_stream(rs.stream.color, 1280, 720, rs.format.bgr8, 30)   #配置color流
-        profile = pipeline.start(config)  #流程开始
-        align_to = rs.stream.color  #与color流对齐
-        align = rs.align(align_to)
-        frames = pipeline.wait_for_frames()  #等待获取图像帧
-        aligned_frames = align.process(frames)  #获取对齐帧
-        aligned_depth_frame = aligned_frames.get_depth_frame()  #获取对齐帧中的depth帧
-        color_frame = aligned_frames.get_color_frame()   #获取对齐帧中的color帧
-        intr = color_frame.profile.as_video_stream_profile().intrinsics   #获取相机内参
-        depth_intrin = aligned_depth_frame.profile.as_video_stream_profile().intrinsics  #获取深度参数（像素坐标系转相机坐标系会用到）
-        depth_image = np.asanyarray(aligned_depth_frame.get_data())  #深度图（默认16位）
-        depth_image_8bit = cv2.convertScaleAbs(depth_image, alpha=0.03)  #深度图（8位）
-        color_image = np.asanyarray(color_frame.get_data())  # RGB图
-        intrinsics = np.asarray( [[intr.fx, 0, intr.ppx], [0,  intr.fy, intr.ppy], [0, 0, 1]])
-        return  intrinsics
-
+    pipeline = rs.pipeline()  #定义流程pipeline
+    config = rs.config()   #定义配置config
+    config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)  #配置depth流
+    config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)   #配置color流
+    profile = pipeline.start(config)  #流程开始
+    align_to = rs.stream.color  #与color流对齐
+    align = rs.align(align_to)
+    frames = pipeline.wait_for_frames()  #等待获取图像帧
+    aligned_frames = align.process(frames)  #获取对齐帧
+    aligned_depth_frame = aligned_frames.get_depth_frame()  #获取对齐帧中的depth帧
+    color_frame = aligned_frames.get_color_frame()   #获取对齐帧中的color帧
+    intr = color_frame.profile.as_video_stream_profile().intrinsics   #获取相机内参
+    depth_intrin = aligned_depth_frame.profile.as_video_stream_profile().intrinsics  #获取深度参数（像素坐标系转相机坐标系会用到）
+    depth_image = np.asanyarray(aligned_depth_frame.get_data())  #深度图（默认16位）
+    depth_image_8bit = cv2.convertScaleAbs(depth_image, alpha=0.03)  #深度图（8位）
+    color_image = np.asanyarray(color_frame.get_data())  # RGB图
+    intrinsics = np.asarray( [[intr.fx, 0, intr.ppx], [0,  intr.fy, intr.ppy], [0, 0, 1]])
+    return intrinsics
 
 chess_board_x_num=7#棋盘格x方向格子数
 chess_board_y_num=5#棋盘格y方向格子数
 chess_board_len=30#单位棋盘格长度,mm
+
 def move_to(p, p1, p2, o1, o2, o3):
     async def move_to_point(p,p1,p2,o1,o2,o3):
         async with techmanpy.connect_sct(robot_ip='192.168.10.13') as conn:
-            await conn.move_to_point_ptp([p, p1, p2, o1, o2, o3], 0.8, 200)
+            await conn.move_to_point_ptp([p, p1, p2, o1, o2, o3], 0.25, 200)
     asyncio.run(move_to_point(p, p1, p2, o1, o2, o3))
 
     #用于根据欧拉角计算旋转矩阵
@@ -65,11 +65,11 @@ def get_RT_from_chessboard(i, pose, chess_board_x_num,chess_board_y_num,chess_bo
    
     move_to(pose[i][0],pose[i][1],pose[i][2],pose[i][3],pose[i][4],pose[i][5])
     print(pose[i][0],pose[i][1],pose[i][2],pose[i][3],pose[i][4],pose[i][5])
-    time.sleep(1)
+    time.sleep(3)
     pipeline = rs.pipeline()  #定义流程pipeline
     config = rs.config()   #定义配置config
-    config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, 30)  #配置depth流
-    config.enable_stream(rs.stream.color, 1280, 720, rs.format.bgr8, 30)   #配置color流
+    config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)  #配置depth流
+    config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)   #配置color流
     profile = pipeline.start(config)  #流程开始
     align_to = rs.stream.color  #与color流对齐
     align = rs.align(align_to)
@@ -100,8 +100,8 @@ def get_RT_from_chessboard(i, pose, chess_board_x_num,chess_board_y_num,chess_bo
             object_points[:2,flag]=np.array([(7-j-1)*chess_board_len,(5-i-1)*chess_board_len])
             flag+=1
     # print(object_points)
-    intrinsicsin = get_data()
-    retval,rvec,tvec  = cv2.solvePnP(object_points.T,corner_points.T, intrinsicsin, distCoeffs=None)
+    intrinsics = get_data()
+    retval,rvec,tvec  = cv2.solvePnP(object_points.T,corner_points.T, intrinsics, distCoeffs=None)
     # print(rvec.reshape((1,3)))
     # RT=np.column_stack((rvec,tvec))
     RT=np.column_stack(((cv2.Rodrigues(rvec))[0],tvec))
@@ -119,12 +119,13 @@ def get_RT_from_chessboard(i, pose, chess_board_x_num,chess_board_y_num,chess_bo
     RT = np.row_stack((RT, np.array([0, 0, 0, 1])))
     # RT=pose(rvec[0,0],rvec[1,0],rvec[2,0],tvec[0,0],tvec[1,0],tvec[2,0])
     # print(RT)
-
+    with open("./intrinsics.txt", 'w',encoding="UTF8") as f:
+        f.write(f"内参=\n{intrinsics}\n")
+        
     # print(retval, rvec, tvec)
     # print(RT)
     # print('')
     return RT
-
 
 pose = [[98.48088, -580.5756, 137.185, 166.851, 5.214443, -8.11066],
 [86.70583, -580.8532, 213.8269, 177.3208, -31.93295, -27.82692],
@@ -166,13 +167,15 @@ for i in range(0,len(pose)):
     R_all_end_to_base_1.append(RT[:3, :3])
     T_all_end_to_base_1.append(RT[:3, 3].reshape((3, 1)))
     # print(R_all_end_to_base_1[i])
-print()
+
 # print(R_all_end_to_base_1)
 R,T=cv2.calibrateHandEye(R_all_end_to_base_1,T_all_end_to_base_1,R_all_chess_to_cam_1,T_all_chess_to_cam_1,cv2.CALIB_HAND_EYE_TSAI)#手眼标定
 RT=np.column_stack((R,T))
 RT = np.row_stack((RT, np.array([0, 0, 0, 1])))#即为cam to end变换矩阵
 print('相機對於末端的轉換矩陣：')
 print(RT)
+with open("./intrinsics.txt", 'a',encoding="UTF8") as f:
+        f.write(f"相機對於末端的轉換矩陣：\n{RT}")
 
 #结果验证，原则上来说，每次结果相差较小
 for i in range(0,len(pose)):
@@ -191,6 +194,7 @@ for i in range(0,len(pose)):
     
     RT_chess_to_base=RT_end_to_base@RT_cam_to_end@RT_chess_to_cam #即为固定的棋盘格相对于机器人基坐标系位姿
     RT_chess_to_base=np.linalg.inv(RT_chess_to_base)
+    camtobase =RT_end_to_base@RT_cam_to_end
     print('第',i,'次')
-    print(RT_chess_to_base[:3,:])
+    print(camtobase[:3,:])
     print('')
