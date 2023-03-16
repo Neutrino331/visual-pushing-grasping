@@ -51,6 +51,7 @@ def take_picture():
     intr = profile.as_video_stream_profile().get_intrinsics()
     print(intr)
     intrinsics = np.asarray( [[intr.fx, 0, intr.ppx], [0,  intr.fy, intr.ppy], [0, 0, 1]])
+    print(intrinsics)
     for i in range(0, 100):
         frames = pipeline.wait_for_frames()
         depth_frame = frames.get_depth_frame()
@@ -70,7 +71,7 @@ def take_picture():
     cv2.imwrite("test.jpg", color_image)
     cv2.imshow("depth", depth_colormap)
     cv2.imwrite("test_depth.jpg", depth_colormap)
-    d = depth_frame.get_distance(370 ,56)
+    d = depth_frame.get_distance(355 ,147)
     print(d)
     cv2.waitKey(10)
     return color_image, depth_frame, intrinsics
@@ -101,8 +102,8 @@ def click(color, depth):
 
 c, d, intrinsics = take_picture()
 click(c, d)
-new_x = np.multiply(370-intrinsics[0][2],0.343/intrinsics[0][0])
-new_y = np.multiply(56-intrinsics[1][2],0.343/intrinsics[1][1])
+new_x = np.multiply(355-intrinsics[0][2],0.341/intrinsics[0][0])
+new_y = np.multiply(147-intrinsics[1][2],0.341/intrinsics[1][1])
 print(new_x, new_y)
 
 point = np.asarray([new_x, new_y, 341,1])

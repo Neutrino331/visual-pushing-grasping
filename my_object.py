@@ -30,6 +30,12 @@ pose = [-125.958, -328.0161, 130.066, -180, 0, 0]
 async def move_to_point(pose):
     async with techmanpy.connect_sct(robot_ip='192.168.10.13') as conn:
         await conn.move_to_point_ptp(pose, 0.5, 200) # x 不能低於350 z 不能低於95
+async def close():
+    async with techmanpy.connect_svr(robot_ip='192.168.10.13') as conn:
+        await conn.set_value('End_DO0',1)
+async def open():
+    async with techmanpy.connect_svr(robot_ip='192.168.10.13') as conn:
+        await conn.set_value('End_DO0',0)
 class object():
     def __init__(self):
         self.a = []
@@ -91,7 +97,6 @@ class object():
             if not depth_frame or not color_frame:
                 continue
         depth = depth_frame.get_distance(self.a[-1] ,self.b[-1])
-        print(depth)
         self.d.append(depth)
 
 
@@ -117,17 +122,22 @@ class object():
         cv2.destroyWindow('Please click 3 times at photo(eyes and nose)')
 asyncio.run(move_to_point(pose))
 object = object()
-print(object.img)
-
 # # c, d = take_picture()
 object.click()
 object.get_distance()
+new_z = int(object.d[-1] * 1000) 
+new_x = np.multiply(int(object.a[-1]) - object.inintrinsics[0][2],new_z/object.inintrinsics[0][0])
+new_y = np.multiply(int(object.b[-1])-object.inintrinsics[1][2],new_z/object.inintrinsics[1][1])
+print(new_x, new_y)
+print(f"深度:{new_z}mm")
+point = np.asarray([new_x, new_y, new_z,1])
 
-new_x = np.multiply(object.a[-1]-object.inintrinsics[0][2],object.d[-1]*100/object.inintrinsics[0][0])
-new_y = np.multiply(object.b[-1]-object.inintrinsics[1][2],object.d[-1]*100/object.inintrinsics[1][1])
-# print(new_x, new_y)
-
-point = np.asarray([new_x, new_y, object.d[-1]*100,1])
-
-coord = mtx@point
+coord = mtx @ point
 print(coord)
+asyncio.run(move_to_point([coord[0], coord[1],coord[2],-180,0,0]))
+time.sleep(3)
+asyncio.run(close())
+time.sleep(5)
+asyncio.run(move_to_point(pose))
+time.sleep(3)
+asyncio.run(open())

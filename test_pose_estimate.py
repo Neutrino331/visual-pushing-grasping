@@ -2,8 +2,17 @@ import numpy as np
 import cv2 as cv
 import glob
 import time 
+import pyrealsense2 as rs
 
+pipeline = rs.pipeline()
+config = rs.config()
+config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, 30)
+config.enable_stream(rs.stream.color, 1280, 720, rs.format.bgr8, 30) 
 
+cfg = pipeline.start(config)
+profile = cfg.get_stream(rs.stream.color)
+
+intr = profile.as_video_stream_profile().get_intrinsics()
 c = 0
 criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 objp = np.zeros((5*7, 3), np.float32)
@@ -31,12 +40,11 @@ if not cap.isOpened():
 #cv2.namedWindow("live", cv2.WINDOW_AUTOSIZE); # 命名一個視窗，可不寫
 while(True):
     # 擷取影像
-    ret, frame = cap.read()
-    if not ret:
-        print("Can't receive frame (stream end?). Exiting ...")
-        break
+    frames = pipeline.wait_for_frames()  #等待获取图像帧
+    color_frame = frames.get_color_frame()
+    color_image = np.asarray(color_frame.get_data())  # RGB图
 
-    gray_img = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+    gray_img = cv.cvtColor(color_image, cv.COLOR_BGR2GRAY)
     print(gray_img.shape)
     w1, h1 = (7, 5)
     # w2,h2=(11,8)
@@ -55,7 +63,7 @@ while(True):
     
     if ret2 == True:
         # view the corners
-        cv.drawChessboardCorners(frame, (w1, h1), corners, ret)
+        cv.drawChessboardCorners(color_image, (w1, h1), corners, ret2)
         _, mtx, dist, v_rot, v_trans = cv.calibrateCamera(
             obj_points, img_points, gray_img.shape[::-1], None, None)
         corners2 = cv.cornerSubPix(gray_img, corners, (11, 11), (-1, -1), criteria)
@@ -63,8 +71,8 @@ while(True):
         _, rvecs, tvecs = cv.solvePnP(objp, corners2, mtx, dist)
         # project 3D points to image plane
         imgpts, jac = cv.projectPoints(axis, rvecs, tvecs, mtx, dist)
-        frame = draw(frame, corners2, imgpts)
-    cv.imshow('img', frame)
+        frame = draw(color_image, corners2, imgpts)
+    cv.imshow('img', color_image)
     cv.waitKey(1000)
     print("内参=", mtx)
     print("畸变系数=", dist)
@@ -74,7 +82,7 @@ while(True):
     k = cv.waitKey(67)
     if k == ord('s'):
         c = c+1
-        cv.imwrite('./cool'+str(c)+'.png', frame)
+        cv.imwrite('./cool'+str(c)+'.png', color_image)
     elif k== ord('q'):
         break
 cv.destroyAllWindows()
