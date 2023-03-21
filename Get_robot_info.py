@@ -17,17 +17,17 @@ for var in settings:
     var_list.append(var["@Item"])
 #print(var_list)
 
-info = ["Joint_Angle"] # add desired variables
+info = ["Coord_Robot_Tool"] # add desired variables
 
 async def get_info(robotip):
-    while True:
-        async with techmanpy.connect_svr(robot_ip=robotip,client_id="info") as conn:
-            value = await conn.get_values(var_list)
-            for i in range(len(var_list)):
-                print(f'{var_list[i]}:{value[var_list[i]]}')
-            # Sleep 2 seconds (at most)
+    """ while True: """
+    async with techmanpy.connect_svr(robot_ip=robotip,client_id="info") as conn:
+        value = await conn.get_values(info )
+        for i in range(len(info )):
+            print(f'{info [i]}:{value[info [i]]}')
+            """ # Sleep 2 seconds (at most)
             time.sleep(2)
-            await conn.keep_alive()
+            await conn.keep_alive() """
         
 if __name__ == '__main__':
     if len(sys.argv) == 2:

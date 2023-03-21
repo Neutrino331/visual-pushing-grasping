@@ -6,8 +6,8 @@ import pyrealsense2 as rs
 
 pipeline = rs.pipeline()
 config = rs.config()
-config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, 30)
-config.enable_stream(rs.stream.color, 1280, 720, rs.format.bgr8, 30) 
+config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30) 
 
 cfg = pipeline.start(config)
 profile = cfg.get_stream(rs.stream.color)
@@ -66,12 +66,12 @@ while(True):
         cv.drawChessboardCorners(color_image, (w1, h1), corners, ret2)
         _, mtx, dist, v_rot, v_trans = cv.calibrateCamera(
             obj_points, img_points, gray_img.shape[::-1], None, None)
-        corners2 = cv.cornerSubPix(gray_img, corners, (11, 11), (-1, -1), criteria)
+        #corners2 = cv.cornerSubPix(gray_img, corners, (11, 11), (-1, -1), criteria)
         # Find the rotation and translation vectors.
-        _, rvecs, tvecs = cv.solvePnP(objp, corners2, mtx, dist)
+        _, rvecs, tvecs = cv.solvePnP(objp, corners, mtx, dist)
         # project 3D points to image plane
         imgpts, jac = cv.projectPoints(axis, rvecs, tvecs, mtx, dist)
-        frame = draw(color_image, corners2, imgpts)
+        frame = draw(color_image, corners, imgpts)
     cv.imshow('img', color_image)
     cv.waitKey(1000)
     print("内参=", mtx)

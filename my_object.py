@@ -24,8 +24,12 @@ new = [[-9.96962121e-01,  7.54158173e-02,  1.94674879e-02 ,-9.78117213e+01],
         [ 7.45148239e-02,  9.96272080e-01, -4.34681821e-02, -4.03826213e+02],
         [-2.26731031e-02, -4.18855146e-02, -9.98865123e-01 , 3.83424606e+02],
         [ 0.00000000e+00 , 0.00000000e+00,  0.00000000e+00,  1.00000000e+00]]
-mtx = np.asarray(new)
-pose = [-125.958, -328.0161, 130.066, -180, 0, 0]
+new2 =[[ 9.85542974e-01,  1.22230038e-02 , 1.68984156e-01 ,-1.76360883e+02],
+        [-1.03600499e-02 ,-9.91180150e-01,  1.32115777e-01, -4.63236680e+02],
+        [ 1.69108593e-01, -1.31956460e-01 ,-9.76724002e-01 , 3.45491991e+02],
+        [ 0.00000000e+00,  0.00000000e+00 , 0.00000000e+00 , 1.00000000e+00]]
+mtx = np.asarray(new2)
+pose = [-149.9984, -339.9976, 151.0007, 180, 0, 0]
 
 async def move_to_point(pose):
     async with techmanpy.connect_sct(robot_ip='192.168.10.13') as conn:
@@ -47,8 +51,8 @@ class object():
         
         pipeline = rs.pipeline()
         config = rs.config()
-        config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-        config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+        config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, 30)
+        config.enable_stream(rs.stream.color, 1280, 720, rs.format.bgr8, 30)
         cfg = pipeline.start(config)
         profile = cfg.get_stream(rs.stream.color)
 
@@ -83,8 +87,8 @@ class object():
     def get_distance(self):
         pipeline = rs.pipeline()
         config = rs.config()
-        config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-        config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+        config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, 30)
+        config.enable_stream(rs.stream.color, 1280, 720, rs.format.bgr8, 30)
         cfg = pipeline.start(config)
         profile = cfg.get_stream(rs.stream.color)
 
